@@ -52,9 +52,9 @@ class MoneyPlImporter(Importer):
         self.request_url = request_url
         #self.parser = parser
 
-    #def import_company_data(self, parser, files_path, company_name, ticker, type, t):
-    #    self.get_company_data(parser, ticker, type, t)
-    #    self.save_data_to_csv(files_path, company_name, type)  
+    def import_company_data(self, parser, files_path, company_name, ticker, type, t):
+        self.get_company_data(parser, ticker, type, t)
+        self.save_data_to_csv(files_path, company_name, type)  
 
     def scrape_company_data(self, ticker, type, t, run):
         data = urllib.urlencode({"ticker":ticker, "p":type,"t": t,"o":run})        
@@ -379,6 +379,8 @@ if __name__ == '__main__':
     parser = MoneyPlHtmlParser()
     importer = MoneyPlImporter(request_url)
 
+    # importer get list of companies
+    # for each company
     importer.import_company_data(parser, files_path, "KOPEX", "KPX", "Q", "t")
     importer.import_company_data(parser, files_path, "KOPEX", "KPX", "Y", "t")
 
