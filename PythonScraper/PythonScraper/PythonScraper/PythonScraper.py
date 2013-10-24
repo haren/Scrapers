@@ -427,6 +427,7 @@ if __name__ == '__main__':
     htmlData = []
     reports = []
     company_list = []
+    failed = []
     files_path = r"C:\Users\lukas_000\Dropbox\TZ&LH&JR exchange\Gambler\Money_pl_notowania\\"
     money_pl_request_url = "http://www.money.pl/ajax/gielda/finanse/"
     money_pl_company_list_url = "http://www.money.pl/gielda/gpw/akcje/"
@@ -437,7 +438,12 @@ if __name__ == '__main__':
 
     company_list = importer.import_company_list(list_parser, money_pl_company_list_url)
     for company in company_list:
-        importer.import_company_data(report_parser, files_path, company[0], company[1], "Q", "t")
-        importer.import_company_data(report_parser, files_path, company[0], company[1], "Y", "t")
-      
+        try:
+            importer.import_company_data(report_parser, files_path, company[0], company[1], "Q", "t")
+            importer.import_company_data(report_parser, files_path, company[0], company[1], "Y", "t")
+        except:
+            print "Failed for " + company[0]
+            failed.append(company)
+     
+    print failed 
     raw_input()
