@@ -1,6 +1,6 @@
 class FinancialReport:
     DEFAULT_VALUE = -0.000000000000000001
-    
+
     def __init__(self):
     	self.date = ''
     	self.report_type = ''
@@ -17,7 +17,7 @@ class FinancialReport:
     	self.non_current_liabilities = self.DEFAULT_VALUE
     	self.current_liabilities = self.DEFAULT_VALUE
     	self.owners_equity = self.DEFAULT_VALUE
-    	share_capital = self.DEFAULT_VALUE
+    	self.share_capital = self.DEFAULT_VALUE
     	self.number_of_shares = self.DEFAULT_VALUE
     	self.book_worth_per_share = self.DEFAULT_VALUE
     	self.profit_per_share = self.DEFAULT_VALUE

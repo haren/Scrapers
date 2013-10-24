@@ -24,14 +24,14 @@ class GpwImporter(Importer):
     def __init__(self):
         pass
 
-    def import_data_from_gpw(self, date_from, date_to, path):
+    def import_data_from_gpw(self, url, date_from, date_to, path):
         for single_date in date_range(date_from, date_to):
-            html_data = self.read_single_page(single_date.strftime('%Y-%m-%d'))
+            html_data = self.read_single_page(url, single_date.strftime('%Y-%m-%d'))
             self.save_html_data_to_file(html_data, 
                                         path, single_date.strftime('%Y-%m-%d'))
 
-    def read_single_page(self, date):
-        url = 'http://www.gpw.pl/notowania_archiwalne_full?type=10&date=' + date
+    def read_single_page(self, url, date):
+        url = url + date
         page_data = urllib.urlopen(url)
         return page_data.read()
 
@@ -55,6 +55,16 @@ class MoneyPlImporter(Importer):
     def import_company_data(self, parser, files_path, company_name, ticker, type, t):
         self.get_company_data(parser, ticker, type, t)
         self.save_data_to_csv(files_path, company_name, type)  
+
+    def import_company_list(self, parser, list_url):
+        print "Started company list import."
+        page_data = self.scrape_comany_list(list_url)
+        list = self.get_company_list(parser, page_data)
+        print "Finished company list import."
+        return list
+
+    def scrape_comany_list(self, list_url):
+        return urllib.urlopen(list_url).read()
 
     def scrape_company_data(self, ticker, type, t, run):
         data = urllib.urlencode({"ticker":ticker, "p":type,"t": t,"o":run})        
@@ -287,6 +297,37 @@ class MoneyPlImporter(Importer):
                 counter += 4
 
         print "Finished scraping successfully for ", ticker, " ", type
+
+    def get_company_list(self, parser, page_data):
+        global htmlData
+        parser.feed(page_data)      
+  
+        company_tickers = []
+        company_names = []
+
+        while htmlData:
+            single_cell = htmlData.pop(0)
+            if single_cell == 'a':
+                single_cell = htmlData.pop(0)
+                if htmlData:
+                    if single_cell and isinstance(single_cell, list):                        
+                        if isinstance(single_cell[0], tuple):
+                          if single_cell[0][0] == 'class':
+                              if single_cell[0][1] == 'link':
+                                company_names.append(htmlData.pop(0))
+            elif single_cell == 'td':
+                single_cell = htmlData.pop(0)
+                if htmlData:
+                    if single_cell and isinstance(single_cell, list):                        
+                        if isinstance(single_cell[0], tuple):
+                          if single_cell[0][0] == 'class':
+                              if single_cell[0][1] == 'al':
+                                  single_cell = htmlData.pop(0)
+                                  if len(single_cell) == 3 and single_cell != 'GNB': # getin noble bank screwed up on webpage, unimportant anyway for now
+                                    company_tickers.append(single_cell)
+
+        htmlData = []
+        return zip(company_names, company_tickers)
         
     def save_data_to_csv(self, path, company_name, type):
         global reports
@@ -350,7 +391,7 @@ class MoneyPlImporter(Importer):
         except:
             print "Error while saving to file: ", full_path
            
-class MoneyPlHtmlParser(HTMLParser):   
+class MoneyPlReportParser(HTMLParser):   
    
     def handle_starttag(self, tag, attrs):
         htmlData.append(tag)
@@ -361,27 +402,42 @@ class MoneyPlHtmlParser(HTMLParser):
     def handle_data(self, data):
         htmlData.append(data)
 
+class MoneyPlCompanyListParser(HTMLParser):   
+   
+    def handle_starttag(self, tag, attrs):
+        htmlData.append(tag)
+        htmlData.append(attrs)
+
+    def handle_endtag(self, tag):
+        htmlData.append(tag)
+
+    def handle_data(self, data):
+        htmlData.append(data)
+
 # Scraping gwp
 #files_path = 'C:\Users\lukas_000\Dropbox\TZ&LH&JR exchange\Gambler\GPW_notowania_archiwalne'
+#gpw_url = 'http://www.gpw.pl/notowania_archiwalne_full?type=10&date='
 #start_date = date(2013,9,2)
 #end_date = date(2013,10,22)
 
 #importer = GpwImporter()
-#importer.import_data_from_gpw(start_date, end_date, files_path)
+#importer.import_data_from_gpw(gpw_url, start_date, end_date, files_path)
 
 if __name__ == '__main__':
     htmlData = []
     reports = []
     company_list = []
     files_path = r"C:\Users\lukas_000\Dropbox\TZ&LH&JR exchange\Gambler\Money_pl_notowania\\"
-    request_url = "http://www.money.pl/ajax/gielda/finanse/"
+    money_pl_request_url = "http://www.money.pl/ajax/gielda/finanse/"
+    money_pl_company_list_url = "http://www.money.pl/gielda/gpw/akcje/"
 
-    parser = MoneyPlHtmlParser()
-    importer = MoneyPlImporter(request_url)
+    report_parser = MoneyPlReportParser()
+    list_parser = MoneyPlCompanyListParser()
+    importer = MoneyPlImporter(money_pl_request_url)
 
-    # importer get list of companies
-    # for each company
-    importer.import_company_data(parser, files_path, "KOPEX", "KPX", "Q", "t")
-    importer.import_company_data(parser, files_path, "KOPEX", "KPX", "Y", "t")
-
+    company_list = importer.import_company_list(list_parser, money_pl_company_list_url)
+    for company in company_list:
+        importer.import_company_data(report_parser, files_path, company[0], company[1], "Q", "t")
+        importer.import_company_data(report_parser, files_path, company[0], company[1], "Y", "t")
+      
     raw_input()
