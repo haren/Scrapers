@@ -4,6 +4,8 @@ from datetime import date, timedelta
 from time import strftime
 from HTMLParser import HTMLParser
 from FinancialReport import FinancialReport
+from os import listdir
+from os.path import isfile, join, splitext
 
 class Helper:
     @classmethod
@@ -40,7 +42,7 @@ class GpwImporter(Importer):
         file = open(file_path, 'wb')
         file.writelines(html_data)
         file.close()
-        print 'Succesfully saved for ', file_path
+        print ('Succesfully saved for ', file_path)
 
     def date_range(self, start_date, end_date):
         for n in range(int ((end_date - start_date).days)):
@@ -57,10 +59,10 @@ class MoneyPlImporter(Importer):
         self.save_data_to_csv(files_path, company_name, type)  
 
     def import_company_list(self, parser, list_url):
-        print "Started company list import."
+        print ("Started company list import.")
         page_data = self.scrape_comany_list(list_url)
         list = self.get_company_list(parser, page_data)
-        print "Finished company list import."
+        print ("Finished company list import.")
         return list
 
     def scrape_comany_list(self, list_url):
@@ -76,12 +78,13 @@ class MoneyPlImporter(Importer):
 
         counter = 0
 
-        print "Started scraping for ", ticker, " ", type
+        print ("Started scraping for ", ticker, " ", type)
                 
         while True:
             htmlData = []
-    
+
             # parser should be a composition in this class, doesn't work though
+
             parser.feed(self.scrape_company_data(ticker, type, t, counter))
             
             if (len (htmlData) < 50):
@@ -296,7 +299,7 @@ class MoneyPlImporter(Importer):
 
                 counter += 4
 
-        print "Finished scraping successfully for ", ticker, " ", type
+        print ("Finished scraping successfully for ", ticker, " ", type)
 
     def get_company_list(self, parser, page_data):
         global htmlData
@@ -332,7 +335,7 @@ class MoneyPlImporter(Importer):
     def save_data_to_csv(self, path, company_name, type):
         global reports
         try:
-            print "Started saving for ", company_name, " ", type
+            print ("Started saving for ", company_name, " ", type)
 
             full_path = path + company_name + '_' + type + '.csv'
             
@@ -386,11 +389,18 @@ class MoneyPlImporter(Importer):
                                  if reports[i].dividend_per_share != FinancialReport.DEFAULT_VALUE else '' for i in range(len(reports))])    
             
             reports = []
-            print "Finished saving for ", company_name, " ", type
+            print ("Finished saving for ", company_name, " ", type)
 
         except:
-            print "Error while saving to file: ", full_path
-           
+            print ("Error while saving to file: ", full_path)
+
+            onlyfiles = [ f for f in listdir(mypath) if isfile(join(mypath,f)) ]
+    
+    def get_scraped_companies(self, path):
+        companies = [ splitext(f)[0][:-2] for f in listdir(path) if isfile(join(path,f)) ]
+        # return (list(set(companies))) # would remove duplicates, but some can have only Q or only Y scraped
+        return companies
+
 class MoneyPlReportParser(HTMLParser):   
    
     def handle_starttag(self, tag, attrs):
@@ -436,14 +446,19 @@ if __name__ == '__main__':
     list_parser = MoneyPlCompanyListParser()
     importer = MoneyPlImporter(money_pl_request_url)
 
+    scraped_companies = importer.get_scraped_companies(files_path)
+    
     company_list = importer.import_company_list(list_parser, money_pl_company_list_url)
     for company in company_list:
-        try:
-            importer.import_company_data(report_parser, files_path, company[0], company[1], "Q", "t")
-            importer.import_company_data(report_parser, files_path, company[0], company[1], "Y", "t")
-        except:
-            print "Failed for " + company[0]
-            failed.append(company)
-     
-    print failed 
+        if company[0] not in scraped_companies:
+            try:   
+                # todo: spawn a new thread for each import, kill after n seconds
+                importer.import_company_data(report_parser, files_path, company[0], company[1], "Q", "t")
+                importer.import_company_data(report_parser, files_path, company[0], company[1], "Y", "t")            
+                time.sleep(0.1)
+            except Exception, e:
+                print ("Failed for " + company[0])
+                print e
+                failed.append(company)  
+    print (failed)
     raw_input()
