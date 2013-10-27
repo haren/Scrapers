@@ -1,4 +1,3 @@
-
 class GpwImporter():
     """A simple importer for gpw.pl archite data"""
 

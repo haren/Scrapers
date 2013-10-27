@@ -1,6 +1,5 @@
 from datetime import date, timedelta
 from time import strftime
-
 from gpw_importer import GpwImporter
 from money_pl_importer import MoneyPlImporter, MoneyPlReportParser, MoneyPlCompanyListParser
 
@@ -31,23 +30,26 @@ if __name__ == '__main__':
     
     company_list = importer.import_company_list(list_parser, money_pl_company_list_url)
     
-    for company in company_list:    
-        # if company[0] not in scraped_companies:
-        try:   
-            # todo: spawn a new thread for each import, kill after n seconds
-            importer.import_company_data(report_parser, files_path, company[0], company[1], "Q", "t")
-            importer.import_company_data(report_parser, files_path, company[0], company[1], "Y", "t")
-        except Exception, e:
-            print ("Failed for " + company[0])
-            print e
-            print ("Trying jednostkowe instead ;)")
-            try:
-                importer.import_company_data(report_parser, files_path, company[0], company[1], "Q", "f")
-                importer.import_company_data(report_parser, files_path, company[0], company[1], "Y", "f")
+    for company in company_list:
+        if company[0] not in scraped_companies:
+            try:   
+                # todo: spawn a new thread for each import, kill after n seconds
+                importer.import_company_data(report_parser, files_path, company[0], company[1], "Q", "t")
+                importer.import_company_data(report_parser, files_path, company[0], company[1], "Y", "t")
             except Exception, e:
-                print ("Failed miserable for company " + company[0])
+                print ("Failed for " + company[0])
                 print e
-                failed.append(company) 
-                 
-    importer.save_missing_comapnies_to_csv(files_path, failed)
+                print ("Trying jednostkowe instead ;)")
+                try:
+                    importer.import_company_data(report_parser, files_path, company[0], company[1], "Q", "f")
+                    importer.import_company_data(report_parser, files_path, company[0], company[1], "Y", "f")
+                except Exception, e:
+                    print ("Failed miserably for company " + company[0])
+                    print e
+                    failed.append(company)
+                    importer.save_missing_comapnies_to_csv(files_path, failed)
+                    # full_path = files_path + company[0] + '_E.csv'                                    
+                    # with open(full_path, 'wb') as csvfile:
+                    #     writer = csv.writer(csvfile, delimiter = ';', quotechar='|', quoting = csv.QUOTE_MINIMAL)
+                    #     writer.writerow("Dupa")                                            
     raw_input()
